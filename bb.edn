@@ -1,0 +1,5 @@
+{:min-bb-version "1.12.201"
+ :tasks {mcp
+         {:doc "Connects to the ductile nREPL with the MCP tools"
+          :task (let [port (slurp ".nrepl-port")]
+                  (clojure "-X:mcp" ":port" port))}}}

@@ -1,0 +1,10 @@
+{:source-paths ["src"]
+ :dependencies [[no.cjohansen/replicant "2025.06.21"]
+                [no.cjohansen/nexus "2025.07.1"]]
+ :builds
+ {:app
+  {:target :browser
+   :output-dir "resources/public/js"
+   :asset-path "/js"
+   :modules {:main {:init-fn replisock/init}}
+   :devtools {:after-load replisock/init}}}}
