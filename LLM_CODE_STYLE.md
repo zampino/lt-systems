@@ -38,6 +38,8 @@
 - Prefer `into` + transducers e.g arity 3 of `into` to pipelines of lazy higher order combinations 
 
 ### Function Design
+- prefer `partial` applications of args
+- prefer `comp` in fn definitions when possible
 - Functions should generally do one thing
 - Pure functions preferred over functions with side effects
 - Return useful values that can be used by callers

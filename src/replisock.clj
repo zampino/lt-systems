@@ -1,6 +1,7 @@
 (ns replisock
   (:require [org.httpkit.server :as server]
-            [replicant.string :as replicant]))
+            [replicant.string :as replicant]
+            [lt-sys :as lt]))
 
 (def system (atom {:clients #{}}))
 
@@ -32,7 +33,6 @@
             [:script {:src "/js/main.js"}]]])})
 
 (defn handler [request]
-  (println "Request:" (:method request) (:uri request))
   (cond
     (:websocket? request)
     (server/as-channel request
@@ -67,10 +67,26 @@
 
 (comment
   ;; Send counter increment to all connected clients
-  (send-action! :counter/inc)
-  (send-action! :counter/dec)
 
   ;; Send counter reset to all connected clients
   (send-action! :counter/reset)
 
-  (start! {}))
+  ;; Reset store with inline LT-system state
+  (send-action! :store/reset
+                (->> (-> lt/L-System
+                         (lt/start-at [400 200])
+                         (assoc :tape '[C F C F]
+                                :rules {'F '[F F]
+                                        'H '[F F H +]
+                                        'C '[F < - H > + C]}))
+                     (iterate lt/step)
+                     (take 100)
+                     last))
+
+  (send-action! :lt-sys/step)
+
+  (count (:clients @system))
+
+  (swap! system assoc :clients #{})
+  (start! {})
+  )
