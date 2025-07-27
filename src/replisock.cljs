@@ -32,9 +32,9 @@
                         (when-let [ws @(:ws system)]
                           (.send ws (pr-str message)))))
 
-(nxr/register-action! :lt-sys/step
-                      (fn [_] [[:store/swap lt/step]]))
-
+(nxr/register-action! :lt-sys/L-step (fn [_] [[:store/swap lt/L-step]]))
+(nxr/register-action! :lt-sys/LT-step (fn [_] [[:store/swap lt/LT-step]]))
+(nxr/register-action! :lt-sys/step2 (fn [_] [[:store/swap lt/step2]]))
 
 ;; LT-system rendering functions
 

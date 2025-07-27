@@ -31,16 +31,33 @@
   [(+ x x') (+ y y')])
 
 ;; Turtle graphics functions
+(defn init-turtle
+  "Initializes the L-system placing the turtle at the configured position,
+  setting the first of the SVG commands needed to draw the turtle path"
+  [{:as sys :turtle/keys [origin]}]
+  (-> sys
+      (assoc :turtle/cursor origin)
+      (assoc :turtle/cmds [(cons "M" origin)])))
+
 (defn start-at
   "Initialize turtle position and add move command"
-  [sys [x y :as P]]
+  [sys P]
   (-> sys
-      (assoc :turtle/cursor P)
-      (update :turtle/cmds conj (vector "M" x y))))
+      (assoc :turtle/origin P)
+      init-turtle))
+
+(defn turtle-reset
+  "Resets the turtle part of the system"
+  [sys]
+  (-> sys
+      (assoc :turtle/rho 0
+             :turtle/stack [])
+      init-turtle))
 
 (defn move-turtle-cursor
   "Update turtle cursor position based on last command"
   [{:as state :turtle/keys [cmds]}]
+  ;(prn :cmds cmds)
   (let [[_ x y] (peek cmds)]
     (update state :turtle/cursor +v [x y])))
 
@@ -63,10 +80,8 @@
                     :turtle/rho rho)))
     state))
 
-(defn read-tape
-  "Apply sequence of symbols to turtle graphics system"
-  [state symbols]
-  (reduce apply-sym state symbols))
+(defn turtle-draw [{:as sys :keys [tape]}]
+  (reduce apply-sym sys tape))
 
 ;; Tape manipulation functions
 (defn move-head
@@ -95,23 +110,34 @@
   [{:as sys :keys [tape head]}]
   (apply-sym sys (tape head)))
 
-(def step
+(defn write-sym [{:as sys :keys [tape head]} sym]
+  (-> sys
+      (update :tape assoc head sym)
+      step-turtle
+      move-head))
+
+(def write-syms (partial reduce write-sym))
+
+(defn step2 [{:as sys :keys [tape head rules queue]}]
+  (let [sym (tape head)
+        syms (or (rules sym) [sym])]
+    (write-syms sys syms)))
+
+(def LT-step
   "Combined step: Turing machine + turtle graphics + head movement"
   (comp move-head step-turtle step-sys))
 
 (defn L-step
-  "Apply L-system rules to expand tape"
+  "Evolve the Lindenmayer system of one generation expanding the characters of the tape according to the grammar rules."
   [{:as sys :keys [rules]}]
   (assert rules)
-  (update sys
-          :tape (comp vec
-                      (partial mapcat (some-fn rules vector))
-                      (partial remove #{'_}))))
-
-(defn evolve
-  "Evolve L-system n generations"
-  [sys n]
-  (->> (iterate L-step sys) next (take n) last))
+  (-> sys
+      turtle-reset
+      (update :tape
+              (comp vec
+                    (partial mapcat (some-fn rules vector))
+                    (partial remove #{'_})))
+      turtle-draw))
 
 (comment
   ;; Evolution examples
@@ -121,19 +147,19 @@
              :rules {'F '[F H]
                      'H '[F F H +]
                      'C '[F < - C > + C]})
-      (evolve 2) :tape)
+      (->> (iterate L-step)
+           (take 4)
+           last
+           :tape))
 
   ;; Combined Turing-Lindenmayer stepping
-  (->> (-> L-System
-           (start-at [100 100])
-           (assoc :tape '[C _ _ _ _ _ _ _]
-                  :rules {'F '[F H]
-                          'H '[F F H +]
-                          'C '[F < - C > + C]}))
-       (iterate step)
-       (take 20)
-       (mapv :turtle/cmds)
-       vec)
-
-  (-> demo-sys step step :queue) ; Queue builds up with rule expansions
-  )
+  (-> L-System
+      (start-at [100 100])
+      (assoc :tape '[C _ _ _ _ _ _ _]
+             :rules {'F '[F H]
+                     'H '[F F H +]
+                     'C '[F < - C > + C]})
+      (->> (iterate LT-step)
+           (take 20)
+           (mapv :turtle/cmds)
+           vec)))

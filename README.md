@@ -1,4 +1,4 @@
-# Replisock
+# Lindenmayer-Turing Systems
 
 A real-time L-system visualization demo showcasing Replicant UI with WebSocket communication. Watch mathematical patterns evolve and grow in your browser as the server computes L-system iterations and streams them to connected clients.
 
@@ -33,8 +33,8 @@ Interactive REPL control:
 (require 'replisock)
 (replisock/start! {:port 3000})
 
-# Remote control examples
-(replisock/send-action! :lt-sys/step)     ; Advance L-system
+#Remote control examples
+(replisock/send-action! :lt-sys/LT-step)     ; Advance L-system
 ```
 
 Hot reload works via shadow-cljs. WebSocket connections survive frontend reloads.
