@@ -61,6 +61,17 @@
   (let [[_ x y] (peek cmds)]
     (update state :turtle/cursor +v [x y])))
 
+(defn update-bounds
+  "Update min/max bounds with current cursor position"
+  [state]
+  (if-let [[x y] (:turtle/cursor state)]
+    (-> state
+        (update :turtle/min-x #(if % (min % x) x))
+        (update :turtle/max-x #(if % (max % x) x))
+        (update :turtle/min-y #(if % (min % y) y))
+        (update :turtle/max-y #(if % (max % y) y)))
+    state))
+
 (defn apply-sym
   "Apply turtle graphics symbol to system state"
   [{:as state :turtle/keys [cursor alpha rho step stack]} sym]
@@ -72,16 +83,17 @@
     '+ (update state :turtle/rho + alpha)
     '- (update state :turtle/rho - alpha)
     '< (update state :turtle/stack conj {:cursor cursor :rho rho})
-    '> (let [{:keys [cursor rho]} (peek stack)]
-         (-> state
-             (update :turtle/stack (comp vec butlast))
-             (update :turtle/cmds conj (vec (cons "M" cursor)))
-             (assoc :turtle/cursor cursor
-                    :turtle/rho rho)))
+    '> (-> state
+           (update :turtle/stack (comp vec butlast))
+           (update :turtle/cmds conj (vec (cons "M" (:cursor (peek stack)))))
+           (assoc :turtle/cursor (:cursor (peek stack))
+                  :turtle/rho (:rho (peek stack))))
     state))
 
 (defn turtle-draw [{:as sys :keys [tape]}]
-  (reduce apply-sym sys tape))
+  (reduce (fn [state sym]
+            (-> state (apply-sym sym) update-bounds))
+          sys tape))
 
 ;; Tape manipulation functions
 (defn move-head
@@ -108,7 +120,7 @@
 (defn step-turtle
   "Apply current tape symbol to turtle graphics"
   [{:as sys :keys [tape head]}]
-  (apply-sym sys (tape head)))
+  (update-bounds (apply-sym sys (tape head))))
 
 (defn write-sym [{:as sys :keys [tape head]} sym]
   (-> sys
@@ -125,7 +137,7 @@
 
 (def LT-step
   "Combined step: Turing machine + turtle graphics + head movement"
-  (comp move-head step-turtle step-sys))
+  (comp move-head (fn [sys] (-> sys step-turtle update-bounds)) step-sys))
 
 (defn L-step
   "Evolve the Lindenmayer system of one generation expanding the characters of the tape according to the grammar rules."
@@ -149,10 +161,9 @@
                      'C '[F < - C > + C]})
       (->> (iterate LT-step)
            (take 100)
-           (map :tape)
-           ))
+           (map :tape)))
 
-  ;; Combined Turing-Lindenmayer stepping
+;; Combined Turing-Lindenmayer stepping
   (-> L-System
       (start-at [100 100])
       (assoc :tape '[C _ _ _ _ _ _ _]

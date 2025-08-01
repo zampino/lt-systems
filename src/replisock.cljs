@@ -32,14 +32,21 @@
                         (when-let [ws @(:ws system)]
                           (.send ws (pr-str message)))))
 
+(nxr/register-effect! :render-init
+                      (fn [{:as dd :keys [state dispatch-data]} system]
+                        (when-not (::init state)
+                          (-> dd :dispatch-data :replicant/node .focus)
+                          ;; TODO: avoid nested renders with interceptors
+                          (js/setTimeout #(nxr/dispatch system dispatch-data
+                                                        [[:store/assoc-in [::init] (js/performance.now)]]) 0))))
+
 (nxr/register-effect! :keyboard/keydown
                       (fn [{{:as dd :replicant/keys [^js dom-event]} :dispatch-data} system _]
-                        (js/console.log :dom-event dom-event )
                         (case (.-key dom-event)
                           "ArrowRight" (nxr/dispatch system dd (if (.-shiftKey dom-event)
                                                                  [[::lt/L-step]]
                                                                  [[:lt-sys/LT-step]]))
-                          (js/console.log "Unhandled key event:" (pr-str dd)))))
+                          (js/console.log "Unhandled key event:" dom-event))))
 
 (nxr/register-action! :lt-sys/L-step (fn [_] [[:store/swap lt/L-step]]))
 (nxr/register-action! :lt-sys/LT-step (fn [_] [[:store/swap lt/LT-step]]))
@@ -70,7 +77,8 @@
         dx (+ (* innerR (js/Math.cos beta)) c)
         dy (+ (* innerR (js/Math.sin beta)) c)]
     [:path
-     {:fill "none" :stroke-width 2 :stroke "currentColor"
+     {:fill "#065f46" :stroke "#22c55e" :stroke-width 2
+      :filter "url(#terminal-glow-tape)"
       :d (str/join " "
                    [(str "M " ax " " ay)
                     (str "L " bx " " by)
@@ -86,14 +94,16 @@
     (let [len (count tape)
           R 80 d 16 c (+ R d 10)]
       (into [:g
-             [:circle {:cx c :cy c :r R :stroke-width (* 2 d) :fill "none"}]
+             [:circle {:cx c :cy c :r R :stroke-width (* 2 d) :fill "none" :stroke "#22c55e"}]
              (head-frame head len R d c)]
             (map-indexed (fn [idx sym]
                            (let [{:keys [x y]} (sym-pos idx c len R)]
                              [:text
-                              {:style {:font-size d :padding "5 5 auto"}
+                              {:style {:font-size d :font-family "Courier New, monospace"}
                                :text-anchor "middle"
-                               :fill "currentColor" :stroke "none" :x x :y y}
+                               :fill (if (= idx head) "#fbbf24" "#00ff41")
+                               :filter "url(#terminal-glow-tape)"
+                               :x x :y y}
                               (str sym)])) tape)))))
 
 (defn system->path
@@ -103,22 +113,68 @@
     [:path
      {:stroke-width (or stroke-width 2)
       :fill "none" :stroke-linecap "round"
+      :stroke "#22c55e" :filter "url(#terminal-glow)"
       :d (str/join " " (apply concat cmds))}]))
 
-(defn render-lt-system
-  "Render complete LT-system with tape and turtle path"
-  [{:as sys :svg/keys [options]}]
-  [:svg.font-sans.border.w-fit.stroke-indigo-600
-   (merge {:viewBox "0 0 800 400"} options)
-   (render-tape sys)
-   (system->path sys)])
+(defn calculate-bounds
+  "Use turtle bounds tracked during drawing"
+  [{:as sys :turtle/keys [min-x max-x min-y max-y]}]
+  (if (and min-x max-x min-y max-y)
+    {:min-x min-x :max-x max-x :min-y min-y :max-y max-y}
+    {:min-x 0 :max-x 800 :min-y 0 :max-y 400}))
 
-(defn app-view [store]
-  [:div.min-h-screen.bg-gray-50.p-8
-   {:tabIndex 0
-    :on {:keydown [[:keyboard/keydown]]}}
-   [:div.max-w-4xl.mx-auto
-    (render-lt-system store)]])
+(defn calculate-viewbox
+  "Calculate dynamic viewBox with minimal padding"
+  [sys]
+  (let [{:keys [min-x max-x min-y max-y]} (calculate-bounds sys)
+        width (- max-x min-x)
+        height (- max-y min-y)
+        padding (* 0.02 (max width height))] ; Reduced from 10% to 2%
+    (str (- min-x padding) " "
+         (- min-y padding) " "
+         (+ width (* 2 padding)) " "
+         (+ height (* 2 padding)))))
+
+(defn render-bounds-debug
+  "Render bounding box in red for debugging"
+  [sys]
+  (let [{:keys [min-x max-x min-y max-y]} (calculate-bounds sys)]
+    [:g
+     [:rect {:x min-x :y min-y
+             :width (- max-x min-x) :height (- max-y min-y)
+             :fill "none" :stroke "red" :stroke-width 2}]
+     #_#_[:text {:x 600 :y 50 :fill "red" :font-size "14" :font-weight "bold"}
+          (str "sys bounds: " (pr-str (select-keys sys [:turtle/min-x :turtle/max-x :turtle/min-y :turtle/max-y])))]
+       [:text {:x 600 :y 70 :fill "red" :font-size "14" :font-weight "bold"}
+        (str "cursor: " (pr-str (:turtle/cursor sys)))]]))
+
+(defn app-view [{:as state ::keys [init]}]
+  [:div.min-h-screen.bg-black.w-full.h-full.flex.items-center.justify-center
+   (cond-> {:tabIndex 0 :on {:keydown [[:keyboard/keydown]]} :style {:outline "none"}}
+     (not init) (assoc :replicant/on-render [[:render-init]]))
+   ;; Separate SVGs: turtle graphics (background) and tape (fixed overlay)
+   [:div.relative.w-full.h-full
+    ;; Turtle graphics SVG (dynamic scaling)
+    [:svg.absolute.inset-0.w-full.h-full
+     {:viewBox (calculate-viewbox state) :style {:background "#000"} :preserveAspectRatio "xMidYMid meet"}
+     [:defs
+      [:filter {:id "terminal-glow"}
+       [:feGaussianBlur {:stdDeviation "8" :result "coloredBlur"}]
+       [:feMerge
+        [:feMergeNode {:in "coloredBlur"}]
+        [:feMergeNode {:in "SourceGraphic"}]]]]
+     (system->path state)
+     (render-bounds-debug state)]
+    ;; Tape SVG (fixed position overlay)
+    [:svg.absolute.top-4.left-4
+     {:width "240" :height "240" :viewBox "0 0 240 240" :style {:z-index 10}}
+     [:defs
+      [:filter {:id "terminal-glow-tape"}
+       [:feGaussianBlur {:stdDeviation "8" :result "coloredBlur"}]
+       [:feMerge
+        [:feMergeNode {:in "coloredBlur"}]
+        [:feMergeNode {:in "SourceGraphic"}]]]]
+     (render-tape state)]]])
 
 (defn connect-ws! []
   (when-not @(:ws system)

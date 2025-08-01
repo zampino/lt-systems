@@ -39,7 +39,7 @@
   (-> lt/L-System
       (lt/start-at [400 200])
       (assoc :tape '[C _ _ _ _ _ _ _ _ _ _ _ _ _ _]
-             :rules {'F '[F F F]
+             :rules {'F '[F F]
                      'H '[F C H +]
                      'C '[F < - < F > + + C]})))
 
@@ -49,7 +49,10 @@
     (server/as-channel request
                        {:on-open (fn [channel]
                                    (add-client! channel)
-                                   (server/send! channel (action-message :store/reset [default-system])))
+                                   (server/send! channel (action-message :store/reset [(->> default-system
+                                                                                            (iterate lt/LT-step)
+                                                                                            (take 100)
+                                                                                            last)])))
                         :on-receive (fn [channel data]
                                       (tap> {:received data}))
                         :on-close (fn [channel status]
@@ -87,10 +90,10 @@
   ;; the typical binary tree
   (broadcast-action! :store/reset
                      (-> lt/L-System
-                    (lt/start-at [400 200])
-                    (assoc :tape '[C _ _ _ _ _ _ _ _ _ _ _ _ _ _]
-                           :rules {'F '[F F]
-                                   'C '[F < - C > + C]})))
+                         (lt/start-at [400 200])
+                         (assoc :tape '[C _ _ _ _ _ _ _ _ _ _ _ _ _ _]
+                                :rules {'F '[F F]
+                                        'C '[F < - C > + C]})))
   ;; a more involved example
   (broadcast-action! :store/reset default-system)
 
