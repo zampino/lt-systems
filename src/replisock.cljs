@@ -32,6 +32,15 @@
                         (when-let [ws @(:ws system)]
                           (.send ws (pr-str message)))))
 
+(nxr/register-effect! :keyboard/keydown
+                      (fn [{{:as dd :replicant/keys [^js dom-event]} :dispatch-data} system _]
+                        (js/console.log :dom-event dom-event )
+                        (case (.-key dom-event)
+                          "ArrowRight" (nxr/dispatch system dd (if (.-shiftKey dom-event)
+                                                                 [[::lt/L-step]]
+                                                                 [[:lt-sys/LT-step]]))
+                          (js/console.log "Unhandled key event:" (pr-str dd)))))
+
 (nxr/register-action! :lt-sys/L-step (fn [_] [[:store/swap lt/L-step]]))
 (nxr/register-action! :lt-sys/LT-step (fn [_] [[:store/swap lt/LT-step]]))
 (nxr/register-action! :lt-sys/step2 (fn [_] [[:store/swap lt/step2]]))
@@ -106,6 +115,8 @@
 
 (defn app-view [store]
   [:div.min-h-screen.bg-gray-50.p-8
+   {:tabIndex 0
+    :on {:keydown [[:keyboard/keydown]]}}
    [:div.max-w-4xl.mx-auto
     (render-lt-system store)]])
 

@@ -17,8 +17,9 @@
 
 ### Parameters & Destructuring
 - Use destructuring in function parameters when accessing multiple keys
-- Example: `[{:keys [::zloc ::match-form] :as ctx}]` for namespaced keys instead of separate `let` bindings
-- Example: `[{:keys [zloc match-form] :as ctx}]` for regular keywords
+- Place `:as` alias first in map destructuring for better readability
+- Example: `[{:as ctx :keys [::zloc ::match-form]}]` for namespaced keys instead of separate `let` bindings
+- Example: `[{:as ctx :keys [zloc match-form]}]` for regular keywords
 
 ### Control Flow
 - Track actual values instead of boolean flags where possible

@@ -70,6 +70,7 @@ Replisock is a minimal Clojure/ClojureScript web application demonstrating real-
 - WebSocket reconnects automatically on client reload
 
 ### REPL Development
+
 ```clojure
 ;; Server operations
 (require 'replisock)
@@ -77,8 +78,8 @@ Replisock is a minimal Clojure/ClojureScript web application demonstrating real-
 (replisock/stop!)
 
 ;; WebSocket messaging
-(replisock/send-action! :counter/inc)
-(replisock/send-action! :counter/reset)
+(replisock/broadcast-action! :counter/inc)
+(replisock/broadcast-action! :counter/reset)
 
 ;; Check connected clients
 @replisock/system

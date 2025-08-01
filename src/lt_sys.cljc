@@ -147,10 +147,10 @@
              :rules {'F '[F H]
                      'H '[F F H +]
                      'C '[F < - C > + C]})
-      (->> (iterate L-step)
-           (take 4)
-           last
-           :tape))
+      (->> (iterate LT-step)
+           (take 100)
+           (map :tape)
+           ))
 
   ;; Combined Turing-Lindenmayer stepping
   (-> L-System

@@ -17,8 +17,11 @@
   (doseq [client (:clients @system)]
     (server/send! client message)))
 
-(defn send-action! [action & args]
-  (broadcast! (pr-str {:type :action :action action :args args})))
+(defn action-message [action args]
+  (pr-str {:type :action :action action :args args}))
+
+(defn broadcast-action! [action & args]
+  (broadcast! (action-message action args)))
 
 (defn html-page []
   {:status 200
@@ -32,12 +35,21 @@
             [:div {:id "app"}]
             [:script {:src "/js/main.js"}]]])})
 
+(def default-system
+  (-> lt/L-System
+      (lt/start-at [400 200])
+      (assoc :tape '[C _ _ _ _ _ _ _ _ _ _ _ _ _ _]
+             :rules {'F '[F F F]
+                     'H '[F C H +]
+                     'C '[F < - < F > + + C]})))
+
 (defn handler [request]
   (cond
     (:websocket? request)
     (server/as-channel request
                        {:on-open (fn [channel]
-                                   (add-client! channel))
+                                   (add-client! channel)
+                                   (server/send! channel (action-message :store/reset [default-system])))
                         :on-receive (fn [channel data]
                                       (tap> {:received data}))
                         :on-close (fn [channel status]
@@ -69,33 +81,27 @@
   ;; Send counter increment to all connected clients
 
   ;; Send counter reset to all connected clients
-  (send-action! :counter/reset)
+  (broadcast-action! :counter/reset)
 
   ;; Reset store with inline LT-system state
   ;; the typical binary tree
-  (send-action! :store/reset
-                (-> lt/L-System
+  (broadcast-action! :store/reset
+                     (-> lt/L-System
                     (lt/start-at [400 200])
                     (assoc :tape '[C _ _ _ _ _ _ _ _ _ _ _ _ _ _]
                            :rules {'F '[F F]
                                    'C '[F < - C > + C]})))
   ;; a more involved example
-  (send-action! :store/reset
-                (-> lt/L-System
-                    (lt/start-at [400 200])
-                    (assoc :tape '[C _ _ _ _ _ _ _ _ _ _ _ _ _ _]
-                           :rules {'F '[F F]
-                                   'H '[F C H +]
-                                   'C '[F < - F > + C]})))
+  (broadcast-action! :store/reset default-system)
 
   ;; perform one evolution in the lindenmayer sense, expanding all characters in the tape accoring to the generative rules,
   ;; draw the whole system, having the turtle sequentially scanning each instruction on the tape
-  (send-action! :lt-sys/L-step)
+  (broadcast-action! :lt-sys/L-step)
 
   ;; evolve of one step in the turing machine sense, advance the turtle reading the instruction at head
-  (send-action! :lt-sys/LT-step)
+  (broadcast-action! :lt-sys/LT-step)
   ;; like the above, with an alternative mechanism for advancing the turing machine
-  (send-action! :lt-sys/step2)
+  (broadcast-action! :lt-sys/step2)
 
   (count (:clients @system))
 

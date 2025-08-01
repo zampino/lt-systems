@@ -34,7 +34,7 @@ Interactive REPL control:
 (replisock/start! {:port 3000})
 
 #Remote control examples
-(replisock/send-action! :lt-sys/LT-step)     ; Advance L-system
+(replisock/broadcast-action! :lt-sys/LT-step)     ; Advance L-system
 ```
 
 Hot reload works via shadow-cljs. WebSocket connections survive frontend reloads.
