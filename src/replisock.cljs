@@ -106,6 +106,13 @@
          (+ width (* 2 padding)) " "
          (+ height (* 2 padding)))))
 
+(defn calculate-stroke-width [state]
+  (let [{:keys [min-x max-x min-y max-y]} (calculate-bounds state)
+        width (- max-x min-x)
+        height (- max-y min-y)
+        max-dimension (max width height 50)]
+    (/ max-dimension 300)))
+
 (defn render-turtle-cursor
   "Render turtle cursor position and orientation"
   [{:turtle/keys [cursor rho]}]
@@ -121,7 +128,7 @@
 
 (def terminal-glow-filter
   [:filter {:id "terminal-glow"}
-   [:feGaussianBlur {:stdDeviation "8" :result "coloredBlur"}]
+   [:feGaussianBlur {:stdDeviation "25" :result "coloredBlur"}]
    [:feMerge
     [:feMergeNode {:in "coloredBlur"}]
     [:feMergeNode {:in "SourceGraphic"}]]])
@@ -161,7 +168,7 @@
    [:defs terminal-glow-filter]
    (when (seq (:turtle/cmds state))
      [:path
-      {:stroke-width 1
+      {:stroke-width (calculate-stroke-width state)
        :fill "none" :stroke-linecap "round"
        :stroke "#22c55e" :filter "url(#terminal-glow)"
        :d (str/join " " (apply concat (:turtle/cmds state)))}])
@@ -174,7 +181,7 @@
      [:g
       [:rect {:x min-x :y min-y
               :width (- max-x min-x) :height (- max-y min-y)
-              :fill "none" :stroke "red" :stroke-width 1}]]]))
+              :fill "none" :stroke "red" :stroke-width (calculate-stroke-width state)}]]]))
 
 (defn app-view [{:as state ::keys [init]}]
   ;(js/console.log :state (pr-str state))
@@ -187,7 +194,7 @@
     (turtle-graphics state)
     (bounds-debug state)
     (tape state)
-    (debug-overlay state)]])
+    #_(debug-overlay state)]])
 
 (defn connect-ws! []
   (when-not @(:ws system)
