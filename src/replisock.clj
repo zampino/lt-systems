@@ -51,7 +51,7 @@
                                    (add-client! channel)
                                    (server/send! channel (action-message :store/reset [(->> default-system
                                                                                             (iterate lt/LT-step)
-                                                                                            (take 100)
+                                                                                            (take 10)
                                                                                             last)])))
                         :on-receive (fn [channel data]
                                       (tap> {:received data}))

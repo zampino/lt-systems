@@ -19,6 +19,13 @@
    :tape []
    :rules {}})
 
+ ;; Dragon curve system
+(def dragon-curve
+  {:tape '[F _ _ _ _ _ _ _ _ _]
+   :rules {'F '[F + G +]
+           'G '[- F - G]}
+   :turtle/alpha (/ PI 3)})
+
 ;; Vector operations for turtle graphics
 (defn U
   "Convert polar coordinates to cartesian unit vector"
@@ -155,13 +162,14 @@
   ;; Evolution examples
   (-> L-System
       (start-at [100 100])
-      (assoc :tape '[C _ _ _ _ _ _ _]
-             :rules {'F '[F H]
-                     'H '[F F H +]
-                     'C '[F < - C > + C]})
+      #_(assoc :tape '[C _ _ _ _ _ _ _]
+               :rules {'F '[F H]
+                       'H '[F F H +]
+                       'C '[F < - C > + C]})
+      (merge dragon-curve)
       (->> (iterate LT-step)
            (take 100)
-           (map :tape)))
+           ))
 
 ;; Combined Turing-Lindenmayer stepping
   (-> L-System

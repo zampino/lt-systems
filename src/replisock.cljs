@@ -87,35 +87,6 @@
                     (str "A " innerR " " innerR " " 0 " " 0 " " 1 " " ax " " ay)
                     "Z"])}]))
 
-(defn render-tape
-  "Render circular tape with symbols and head indicator"
-  [{:as state :keys [head tape]}]
-  (when (and head tape)
-    (let [len (count tape)
-          R 80 d 16 c (+ R d 10)]
-      (into [:g
-             [:circle {:cx c :cy c :r R :stroke-width (* 2 d) :fill "none" :stroke "#22c55e"}]
-             (head-frame head len R d c)]
-            (map-indexed (fn [idx sym]
-                           (let [{:keys [x y]} (sym-pos idx c len R)]
-                             [:text
-                              {:style {:font-size d :font-family "Courier New, monospace"}
-                               :text-anchor "middle"
-                               :fill (if (= idx head) "#fbbf24" "#00ff41")
-                               :filter "url(#terminal-glow-tape)"
-                               :x x :y y}
-                              (str sym)])) tape)))))
-
-(defn system->path
-  "Convert turtle commands to SVG path"
-  [{:turtle/keys [cmds] :svg/keys [stroke-width]}]
-  (when (seq cmds)
-    [:path
-     {:stroke-width (or stroke-width 2)
-      :fill "none" :stroke-linecap "round"
-      :stroke "#22c55e" :filter "url(#terminal-glow)"
-      :d (str/join " " (apply concat cmds))}]))
-
 (defn calculate-bounds
   "Use turtle bounds tracked during drawing"
   [{:as sys :turtle/keys [min-x max-x min-y max-y]}]
@@ -135,46 +106,91 @@
          (+ width (* 2 padding)) " "
          (+ height (* 2 padding)))))
 
-(defn render-bounds-debug
-  "Render bounding box in red for debugging"
-  [sys]
-  (let [{:keys [min-x max-x min-y max-y]} (calculate-bounds sys)]
-    [:g
-     [:rect {:x min-x :y min-y
-             :width (- max-x min-x) :height (- max-y min-y)
-             :fill "none" :stroke "red" :stroke-width 2}]
-     #_#_[:text {:x 600 :y 50 :fill "red" :font-size "14" :font-weight "bold"}
-          (str "sys bounds: " (pr-str (select-keys sys [:turtle/min-x :turtle/max-x :turtle/min-y :turtle/max-y])))]
-       [:text {:x 600 :y 70 :fill "red" :font-size "14" :font-weight "bold"}
-        (str "cursor: " (pr-str (:turtle/cursor sys)))]]))
+(defn render-turtle-cursor
+  "Render turtle cursor position and orientation"
+  [{:turtle/keys [cursor rho]}]
+  (when cursor
+    (let [[x y] cursor
+          arrow-length 20
+          arrow-x (+ x (* arrow-length (js/Math.cos rho)))
+          arrow-y (+ y (* arrow-length (js/Math.sin rho)))]
+      [:g
+       [:circle {:cx x :cy y :r 5 :fill "yellow" :stroke "orange" :stroke-width 2}]
+       [:line {:x1 x :y1 y :x2 arrow-x :y2 arrow-y
+               :stroke "orange" :stroke-width 3}]])))
+
+(defn debug-overlay [state]
+  [:div.absolute.top-4.right-4.text-red-500.text-sm.font-mono.bg-black.bg-opacity-75.p-2.rounded.max-w-md
+   {:style {:z-index 20}}
+   [:div#debug-sys-bounds.mb-2
+    (str "sys bounds: " (pr-str (select-keys state [:turtle/min-x :turtle/max-x :turtle/min-y :turtle/max-y])))]
+   [:div#debug-sys-cmds.text-xs.overflow-hidden
+    {:style {:word-break "break-all"}}
+    (pr-str (:turtle/cmds state))]])
+
+(defn tape [{:as state :keys [head tape]}]
+  [:svg.absolute.top-4.left-4
+   {:width "240" :height "240" :viewBox "0 0 240 240" :style {:z-index 10}}
+   [:defs
+    [:filter {:id "terminal-glow-tape"}
+     [:feGaussianBlur {:stdDeviation "8" :result "coloredBlur"}]
+     [:feMerge
+      [:feMergeNode {:in "coloredBlur"}]
+      [:feMergeNode {:in "SourceGraphic"}]]]]
+   (when (and head tape)
+     (let [len (count tape)
+           R 80 d 16 c (+ R d 10)]
+       (into [:g
+              [:circle {:cx c :cy c :r R :stroke-width (* 2 d) :fill "none" :stroke "#22c55e"}]
+              (head-frame head len R d c)]
+             (map-indexed (fn [idx sym]
+                            (let [{:keys [x y]} (sym-pos idx c len R)]
+                              [:text
+                               {:style {:font-size d :font-family "Courier New, monospace"}
+                                :text-anchor "middle"
+                                :fill (if (= idx head) "#fbbf24" "#00ff41")
+                                :filter "url(#terminal-glow-tape)"
+                                :x x :y y}
+                               (str sym)])) tape))))])
+
+(defn turtle-graphics [state]
+  [:svg.absolute.inset-0.w-full.h-full
+   {:viewBox (calculate-viewbox state) :style {:background "#000"} :preserveAspectRatio "xMidYMid meet"}
+   [:defs
+    [:filter {:id "terminal-glow"}
+     [:feGaussianBlur {:stdDeviation "8" :result "coloredBlur"}]
+     [:feMerge
+      [:feMergeNode {:in "coloredBlur"}]
+      [:feMergeNode {:in "SourceGraphic"}]]]]
+   (when (seq (:turtle/cmds state))
+     [:path
+      {:stroke-width 1
+       :fill "none" :stroke-linecap "round"
+       :stroke "#22c55e" :filter "url(#terminal-glow)"
+       :d (str/join " " (apply concat (:turtle/cmds state)))}])
+   #_(render-turtle-cursor state)])
+
+(defn bounds-debug [state]
+  (let [{:keys [min-x max-x min-y max-y]} (calculate-bounds state)]
+    [:svg.absolute.inset-0.w-full.h-full.pointer-events-none
+     {:viewBox (calculate-viewbox state) :preserveAspectRatio "xMidYMid meet" :style {:z-index 15}}
+     [:g
+      [:rect {:x min-x :y min-y
+              :width (- max-x min-x) :height (- max-y min-y)
+              :fill "none" :stroke "red" :stroke-width 1}]]]))
 
 (defn app-view [{:as state ::keys [init]}]
+  ;(js/console.log :state (pr-str state))
+  ;(js/console.log :turtle-cmds (pr-str (:turtle/cmds state)))
+  ;(js/console.log :system-path (pr-str (system->path state)))
   [:div.min-h-screen.bg-black.w-full.h-full.flex.items-center.justify-center
    (cond-> {:tabIndex 0 :on {:keydown [[:keyboard/keydown]]} :style {:outline "none"}}
      (not init) (assoc :replicant/on-render [[:render-init]]))
-   ;; Separate SVGs: turtle graphics (background) and tape (fixed overlay)
    [:div.relative.w-full.h-full
-    ;; Turtle graphics SVG (dynamic scaling)
-    [:svg.absolute.inset-0.w-full.h-full
-     {:viewBox (calculate-viewbox state) :style {:background "#000"} :preserveAspectRatio "xMidYMid meet"}
-     [:defs
-      [:filter {:id "terminal-glow"}
-       [:feGaussianBlur {:stdDeviation "8" :result "coloredBlur"}]
-       [:feMerge
-        [:feMergeNode {:in "coloredBlur"}]
-        [:feMergeNode {:in "SourceGraphic"}]]]]
-     (system->path state)
-     (render-bounds-debug state)]
-    ;; Tape SVG (fixed position overlay)
-    [:svg.absolute.top-4.left-4
-     {:width "240" :height "240" :viewBox "0 0 240 240" :style {:z-index 10}}
-     [:defs
-      [:filter {:id "terminal-glow-tape"}
-       [:feGaussianBlur {:stdDeviation "8" :result "coloredBlur"}]
-       [:feMerge
-        [:feMergeNode {:in "coloredBlur"}]
-        [:feMergeNode {:in "SourceGraphic"}]]]]
-     (render-tape state)]]])
+    (turtle-graphics state)
+    (bounds-debug state)
+    (tape state)
+    (debug-overlay state)]])
 
 (defn connect-ws! []
   (when-not @(:ws system)
