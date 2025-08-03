@@ -78,7 +78,7 @@
         dy (+ (* innerR (js/Math.sin beta)) c)]
     [:path
      {:fill "#065f46" :stroke "#22c55e" :stroke-width 2
-      :filter "url(#terminal-glow-tape)"
+      :filter "url(#terminal-glow)"
       :d (str/join " "
                    [(str "M " ax " " ay)
                     (str "L " bx " " by)
@@ -119,6 +119,13 @@
        [:line {:x1 x :y1 y :x2 arrow-x :y2 arrow-y
                :stroke "orange" :stroke-width 3}]])))
 
+(def terminal-glow-filter
+  [:filter {:id "terminal-glow"}
+   [:feGaussianBlur {:stdDeviation "8" :result "coloredBlur"}]
+   [:feMerge
+    [:feMergeNode {:in "coloredBlur"}]
+    [:feMergeNode {:in "SourceGraphic"}]]])
+
 (defn debug-overlay [state]
   [:div.absolute.top-4.right-4.text-red-500.text-sm.font-mono.bg-black.bg-opacity-75.p-2.rounded.max-w-md
    {:style {:z-index 20}}
@@ -131,12 +138,7 @@
 (defn tape [{:as state :keys [head tape]}]
   [:svg.absolute.top-4.left-4
    {:width "240" :height "240" :viewBox "0 0 240 240" :style {:z-index 10}}
-   [:defs
-    [:filter {:id "terminal-glow-tape"}
-     [:feGaussianBlur {:stdDeviation "8" :result "coloredBlur"}]
-     [:feMerge
-      [:feMergeNode {:in "coloredBlur"}]
-      [:feMergeNode {:in "SourceGraphic"}]]]]
+   [:defs terminal-glow-filter]
    (when (and head tape)
      (let [len (count tape)
            R 80 d 16 c (+ R d 10)]
@@ -149,19 +151,14 @@
                                {:style {:font-size d :font-family "Courier New, monospace"}
                                 :text-anchor "middle"
                                 :fill (if (= idx head) "#fbbf24" "#00ff41")
-                                :filter "url(#terminal-glow-tape)"
+                                :filter "url(#terminal-glow)"
                                 :x x :y y}
                                (str sym)])) tape))))])
 
 (defn turtle-graphics [state]
   [:svg.absolute.inset-0.w-full.h-full
    {:viewBox (calculate-viewbox state) :style {:background "#000"} :preserveAspectRatio "xMidYMid meet"}
-   [:defs
-    [:filter {:id "terminal-glow"}
-     [:feGaussianBlur {:stdDeviation "8" :result "coloredBlur"}]
-     [:feMerge
-      [:feMergeNode {:in "coloredBlur"}]
-      [:feMergeNode {:in "SourceGraphic"}]]]]
+   [:defs terminal-glow-filter]
    (when (seq (:turtle/cmds state))
      [:path
       {:stroke-width 1
