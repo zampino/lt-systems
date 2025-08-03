@@ -15,16 +15,9 @@
    :turtle/cmds []
    :head 0
    :dir 1
-   :queue []
+   :queue ()
    :tape []
    :rules {}})
-
- ;; Dragon curve system
-(def dragon-curve
-  {:tape '[F _ _ _ _ _ _ _ _ _]
-   :rules {'F '[F + G +]
-           'G '[- F - G]}
-   :turtle/alpha (/ PI 3)})
 
 ;; Vector operations for turtle graphics
 (defn U
@@ -124,6 +117,22 @@
         ;; Reverse direction on pipe symbol
         (cond-> (= '| sym) (update :dir * -1)))))
 
+(defn write-queue-peek [{:as sys :keys [head queue]}]
+  (if (seq queue)
+    (update sys :tape assoc head (first queue))
+    sys))
+
+(defn step-sys'
+  "Single step of the Turing-Lindenmayer system"
+  [{:as sys :keys [tape head rules]}]
+  (let [sym (tape head)]
+    (-> sys
+        (update :queue concat (when-not (= '_ sym)
+                                (get rules sym [sym])))
+        write-queue-peek
+        (update :queue next)
+        (cond-> (= '| sym) (update :dir * -1)))))
+
 (defn step-turtle
   "Apply current tape symbol to turtle graphics"
   [{:as sys :keys [tape head]}]
@@ -144,7 +153,9 @@
 
 (def LT-step
   "Combined step: Turing machine + turtle graphics + head movement"
-  (comp move-head (fn [sys] (-> sys step-turtle update-bounds)) step-sys))
+  (comp move-head
+        step-turtle
+        step-sys'))
 
 (defn L-step
   "Evolve the Lindenmayer system of one generation expanding the characters of the tape according to the grammar rules."
@@ -159,19 +170,29 @@
       turtle-draw))
 
 (comment
-  ;; Evolution examples
+  ;; Lindenmeyer evolution examples
+  ;; dragon curve
   (-> L-System
       (start-at [100 100])
-      #_(assoc :tape '[C _ _ _ _ _ _ _]
-               :rules {'F '[F H]
-                       'H '[F F H +]
-                       'C '[F < - C > + C]})
-      (merge dragon-curve)
-      (->> (iterate LT-step)
-           (take 100)
-           ))
+      (assoc :tape '[F _ _ _ _ _ _ _ _ _ _ _ _ _]
+             :rules {'F '[F + G +]
+                     'G '[- F - G]}
+             :turtle/alpha (/ PI 3))
+      (->> (iterate L-step)
+           (take 6)
+           (mapv :tape)))
 
-;; Combined Turing-Lindenmayer stepping
+  ;; standard algae
+  (-> L-System
+      (start-at [100 100])
+      (assoc :tape '[F X _ _ _ _ _ _ _ _ _ _]
+             :rules {'X '[< - F X > + F X]}
+             :turtle/alpha (* (/ 1 12) lt/PI))
+      (->> (iterate L-step)
+           (take 5)
+           (mapv :tape)))
+
+  ;; Combined Turing-Lindenmayer stepping
   (-> L-System
       (start-at [100 100])
       (assoc :tape '[C _ _ _ _ _ _ _]

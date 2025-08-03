@@ -111,7 +111,7 @@
         width (- max-x min-x)
         height (- max-y min-y)
         max-dimension (max width height 50)]
-    (/ max-dimension 300)))
+    (/ max-dimension 700)))
 
 (defn render-turtle-cursor
   "Render turtle cursor position and orientation"
@@ -136,10 +136,11 @@
 (defn debug-overlay [state]
   [:div.absolute.top-4.right-4.text-red-500.text-sm.font-mono.bg-black.bg-opacity-75.p-2.rounded.max-w-md
    {:style {:z-index 20}}
-   [:div#debug-sys-bounds.mb-2
+   #_ [:div#debug-sys-bounds.mb-2
     (str "sys bounds: " (pr-str (select-keys state [:turtle/min-x :turtle/max-x :turtle/min-y :turtle/max-y])))]
    [:div#debug-sys-cmds.text-xs.overflow-hidden
     {:style {:word-break "break-all"}}
+    #_ (pr-str (:queue state))
     (pr-str (:turtle/cmds state))]])
 
 (defn tape [{:as state :keys [head tape]}]

@@ -35,13 +35,36 @@
             [:div {:id "app"}]
             [:script {:src "/js/main.js"}]]])})
 
+;; System definitions
+(def dragon-curve
+  ;; TODO: fix this!
+  {:tape '[F _ _ _ _ _ _ _ _ _ _ _ _ _]
+   :rules {'F '[F + G +]
+           'G '[- F - G]}
+   :turtle/alpha (/ lt/PI 2)})
+
+(def spinning-algae
+  {:tape '[F X _ _ _ _ _ _ _ _ _ _]
+   :rules {'X '[< - F X > +  F X]}
+   :turtle/alpha (* (/ 1 12) lt/PI)})
+
+(def sticks
+  {:tape '[X _ _ _ _ _ _ _ _ _ _ ]
+   :turtle/alpha (* (/ 1.0 6) lt/PI)
+   :rules {'F '[F F]
+           'X '[F < + X > F < - X > + X]}})
+
+(def weed
+  {:tape '[F _ _ _ _ _ _ _ _ _]
+   :turtle/alpha (/ lt/PI 6.)
+   :rules {'F '[F F - < X Y > + < X Y >]
+           'X '[+ F Y]
+           'Y '[- F X]}})
+
 (def default-system
   (-> lt/L-System
       (lt/start-at [400 200])
-      (assoc :tape '[C _ _ _ _ _ _ _ _ _ _ _ _ _ _]
-             :rules {'F '[F F]
-                     'H '[F C H +]
-                     'C '[F < - < F > + + C]})))
+      (merge weed)))
 
 (defn handler [request]
   (cond
@@ -50,9 +73,8 @@
                        {:on-open (fn [channel]
                                    (add-client! channel)
                                    (server/send! channel (action-message :store/reset [(->> default-system
-                                                                                            (iterate lt/LT-step)
-                                                                                            (take 10)
-                                                                                            last)])))
+                                                                                            (iterate lt/LT-step) (take 3000) last
+                                                                                            )])))
                         :on-receive (fn [channel data]
                                       (tap> {:received data}))
                         :on-close (fn [channel status]
@@ -109,5 +131,4 @@
   (count (:clients @system))
 
   (swap! system assoc :clients #{})
-  (start! {})
-  )
+  (start! {}))
