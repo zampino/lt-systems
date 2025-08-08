@@ -48,8 +48,20 @@
    :rules {'X '[< - F X > +  F X]}
    :turtle/alpha (* (/ 1 12) lt/PI)})
 
+(def bushy-fern
+  {:tape '[X _ _ _ _ _ _ _ _ _ _]
+   :rules {'X '[F < - X > < + X > F X]
+           'F '[F F]}
+   :turtle/alpha (* (/ 1 6) lt/PI)})
+
+(def dense-coral
+  {:tape '[Y _ _ _ _ _ _ _ _ _ _]
+   :rules {'Y '[F + Y F - Y - F Y + F Y]
+           'F '[F F]}
+   :turtle/alpha (* (/ 1 4) lt/PI)})
+
 (def sticks
-  {:tape '[X _ _ _ _ _ _ _ _ _ _ ]
+  {:tape '[X _ _ _ _ _ _ _ _ _ _]
    :turtle/alpha (* (/ 1.0 6) lt/PI)
    :rules {'F '[F F]
            'X '[F < + X > F < - X > + X]}})
@@ -64,7 +76,7 @@
 (def default-system
   (-> lt/L-System
       (lt/start-at [400 200])
-      (merge weed)))
+      (merge bushy-fern)))
 
 (defn handler [request]
   (cond
@@ -73,8 +85,7 @@
                        {:on-open (fn [channel]
                                    (add-client! channel)
                                    (server/send! channel (action-message :store/reset [(->> default-system
-                                                                                            (iterate lt/LT-step) (take 3000) last
-                                                                                            )])))
+                                                                                            (iterate lt/LT-step) (take 5000) last)])))
                         :on-receive (fn [channel data]
                                       (tap> {:received data}))
                         :on-close (fn [channel status]

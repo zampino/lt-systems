@@ -83,11 +83,12 @@
     '+ (update state :turtle/rho + alpha)
     '- (update state :turtle/rho - alpha)
     '< (update state :turtle/stack conj {:cursor cursor :rho rho})
-    '> (-> state
-           (update :turtle/stack (comp vec butlast))
-           (update :turtle/cmds conj (vec (cons "M" (:cursor (peek stack)))))
-           (assoc :turtle/cursor (:cursor (peek stack))
-                  :turtle/rho (:rho (peek stack))))
+    '> (cond-> state
+         (seq stack)
+         (-> (update :turtle/stack (comp vec butlast))
+             (update :turtle/cmds conj (vec (cons "M" (:cursor (peek stack)))))
+             (assoc :turtle/cursor (:cursor (peek stack))
+                    :turtle/rho (:rho (peek stack)))))
     state))
 
 (defn turtle-draw [{:as sys :keys [tape]}]
