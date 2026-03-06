@@ -119,16 +119,25 @@
   ;; Send counter reset to all connected clients
   (broadcast-action! :counter/reset)
 
-  ;; Reset store with inline LT-system state
-  ;; the typical binary tree
   (broadcast-action! :store/reset
                      (-> lt/L-System
                          (lt/start-at [400 200])
-                         (assoc :tape '[C _ _ _ _ _ _ _ _ _ _ _ _ _ _]
+                         (merge spinning-algae)
+                         ;(merge bushy-fern)
+                         ;(merge dense-coral)
+                         (->> (iterate lt/LT-step)
+                              (take 6000)
+                              last)))
+
+  (broadcast-action! :store/reset
+                     (-> lt/L-System
+                         (lt/start-at [400 200])
+                         (assoc :tape '[C _ _ _ _ _ ]
                                 :rules {'F '[F F]
-                                        'C '[F < - C > + C]})))
-  ;; a more involved example
-  (broadcast-action! :store/reset default-system)
+                                        'C '[F < - C + + C - C + > F]})
+                         (->> (iterate lt/LT-step)
+                              (take 5000)
+                              last)))
 
   ;; perform one evolution in the lindenmayer sense, expanding all characters in the tape accoring to the generative rules,
   ;; draw the whole system, having the turtle sequentially scanning each instruction on the tape

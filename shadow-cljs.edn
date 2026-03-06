@@ -1,6 +1,4 @@
-{:source-paths ["src"]
- :dependencies [[no.cjohansen/replicant "2025.06.21"]
-                [no.cjohansen/nexus "2025.07.1"]]
+{:deps {:aliases [:dev]}
  :builds
  {:app
   {:target :browser
