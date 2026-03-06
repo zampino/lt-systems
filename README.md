@@ -71,7 +71,6 @@ Hot reload works via shadow-cljs. WebSocket connections survive frontend reloads
 - **Replicant**: Virtual DOM library for ClojureScript
 - **Nexus**: Functional state management
 - **shadow-cljs**: ClojureScript compilation
-- **clojure-mcp**: Model Context Protocol server
 
 ## L-system Features
 
